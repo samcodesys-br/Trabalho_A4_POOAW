@@ -1,0 +1,173 @@
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="game-container">
+    <div class="game-header">
+        <div class="stat-box" id="flags">
+            🚩 {{ field.flags }}
+        </div>
+        <div class="stat-box" id="fake-bombs">
+            ⭐ 0
+        </div>
+        <div class="stat-box" id="time">
+            ⏱️ 0
+        </div>
+        <button id="restart-btn" class="stat-box">🔄 Restart</button>
+        <a href="/score" class="stat-box" style="text-decoration: none; color: red;">📊 Score</a>
+    </div>
+
+    <div class="minefield">
+        <table>
+        {% for row in field.matrix %}
+        <tr>
+            {% for cell in row %}
+                <td class="cell {% if cell.revealed %}revealed{% endif %} {% if cell.isMine %}mine{% endif %} {% if cell.flagged %}flagged{% endif %} {% if cell.is_fake_bomb_neighbor %}fake-bomb-neighbor{% endif %}"
+                     data-row="{{ cell.coord[0] }}"
+                     data-col="{{ cell.coord[1] }}">
+                    {% if cell.revealed %}
+                        {% if not cell.isMine and not cell.isFake %}
+                
+                            <span class="{% if cell.is_fake_bomb_neighbor %}fake_bomb_neighbor{% endif %}">{{ cell.valor if cell.valor > 0 else '0' }}</span>
+                        {% endif %}
+                    {% elif cell.flagged %}
+                        <img src="/static/image/bandeira.png" width="40px" height="40px">
+                    {% endif %}
+                </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </table>
+    </div>
+</div>
+
+<script>
+    let fakeBombsFound = 0;
+    let gameStartTime = Date.now();
+
+    // Add click handlers for cells
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.addEventListener('click', function() {
+            const row = this.dataset.row;
+            const col = this.dataset.col;
+            
+            fetch('/reveal', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ row, col })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.type === 'bomb') {
+                    this.innerHTML ='<img src="/static/image/pixelArtCampoMinado.gif" width="40px" height="40px">'
+                    alert('Game Over! Você pisou em uma bomba.');
+                    
+                    fetch('/restart', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error restarting game:', error);
+                        window.location.reload();
+                    });
+                } else if (data.type === 'fake') {
+                    fakeBombsFound++;
+                    this.innerHTML ='<img src="/static/image/bombaFalsa.png" width="40px" height="40px">'
+                    
+                    // Atualiza o contador de bombas
+                    document.getElementById('fake-bombs').textContent = `⭐ ${fakeBombsFound}`;
+                } else {
+                    this.textContent = data.value > 0 ? data.value : '0';
+                }
+                this.classList.add('revealed');
+
+                // Mensagem de vitória
+                if (data.victory) {
+                    setTimeout(() => {
+                        alert('Parabéns! Você venceu o jogo!');
+                        
+                        const gameTime = Math.floor((Date.now() - gameStartTime) / 1000);
+                        fetch('/end_game', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                fakeBombsFound: fakeBombsFound,
+                                timeInSeconds: gameTime
+                            })
+                        });
+
+                        window.location.reload();
+                    }, 100);
+                }                    
+            });
+        });
+
+        cell.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            const row = this.dataset.row;
+            const col = this.dataset.col;
+            fetch('/flag', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ row, col })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.flagged) {
+                    this.innerHTML ='<img src="/static/image/bandeira.png" width="40px" height="40px">'
+                    this.classList.add('flagged');
+                } else {
+                    this.innerHTML  = '';
+                    this.classList.remove('flagged');
+                }
+                document.getElementById('flags').textContent = `🚩 ${data.flags}`;
+            });
+        });
+    });
+
+    // Botão de restart
+    document.getElementById('restart-btn').addEventListener('click', function() {
+        fetch('/restart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                //Recarregar a página
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error restarting game:', error);
+            //Recarregar a página
+            window.location.reload();
+        });
+    });
+
+    // Timer do jogo
+    let seconds = 0;
+    const timerDisplay = document.getElementById('time');
+    const timer = setInterval(() => {
+        seconds++;
+        timerDisplay.textContent = `⏱️ ${seconds}`;
+    }, 1000);
+</script>
+{% endblock %}

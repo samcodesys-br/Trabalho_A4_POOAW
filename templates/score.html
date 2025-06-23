@@ -1,0 +1,49 @@
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="score-container">
+    <h1>🏆 Pontuações</h1>
+    
+    <div class="score-stats">
+        
+        <div class="stat-card">
+            <h3>⭐ Bombas Falsas Encontradas</h3>
+            <p class="stat-number">{{ total_fake_bombs }}</p>
+        </div>
+        
+        <div class="stat-card">
+            <h3>⏱️ Tempo Total</h3>
+            <p class="stat-number">{{ total_time }}s</p>
+        </div>
+    </div>
+    
+    <div class="game-history">
+        <h2>Histórico de Jogos</h2>
+        <table class="score-table">
+            <thead>
+                <tr>
+                    <th>🏆 Ranking</th>
+                    <th>⏱️ Tempo (s)</th>
+                    <th>⭐ Bombas Falsas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for game in games %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ game.timeInSeconds }}</td>
+                    <td>{{ game.fakeBombsFound }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="navigation">
+        <a href="/" class="btn">🔄 Novo Jogo</a>
+    </div>
+</div>
+
+{% endblock %} 
